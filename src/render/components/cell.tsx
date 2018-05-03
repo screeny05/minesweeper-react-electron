@@ -1,13 +1,21 @@
 import { BoardLogic } from "./board";
 import { computed, action, observable } from "mobx";
 import * as React from 'react';
-import styled from "styled-components";
+import styled, { injectGlobal } from "styled-components";
 import { observer } from "mobx-react";
 import bind from 'bind-decorator';
 import { GameLogicState } from './game';
-import imgFlag from '../assets/images/flag.png';
-import imgMine from '../assets/images/mine.png';
-import imgCross from '../assets/images/cross.png';
+import imgFlag from '../../assets/images/flag.png';
+import imgMine from '../../assets/images/mine.png';
+import imgCross from '../../assets/images/cross.png';
+import pressstart2p from '../../assets/fonts/pressstart2p.woff2';
+
+injectGlobal`
+    @font-face {
+        font-family: 'pressstart2p';
+        src: url('${pressstart2p}') format('woff2');
+    }
+`;
 
 export enum CellFlag {
     NONE,

@@ -9,11 +9,12 @@ import { MenuStrip, MenuStripSubItem, MenuStripSubSeparator, MenuStripItem } fro
 import { bind } from 'bind-decorator';
 const { ipcRenderer, shell } = window.require('electron');
 
-import faceCool from '../assets/images/face-cool.png';
-import faceDead from '../assets/images/face-dead.png';
-import faceFrown from '../assets/images/face-frown.png';
-import faceSmile from '../assets/images/face-smile.png';
-import faceSurprise from '../assets/images/face-surprise.png';
+import faceCool from '../../assets/images/face-cool.png';
+import faceDead from '../../assets/images/face-dead.png';
+import faceFrown from '../../assets/images/face-frown.png';
+import faceSmile from '../../assets/images/face-smile.png';
+import faceSurprise from '../../assets/images/face-surprise.png';
+import { WindowFrame } from './form/window-frame';
 
 export enum GameLogicState {
     Running,
@@ -259,5 +260,28 @@ export class Game extends React.Component<GameProps, GameState> {
     @bind
     commandGithub(){
         shell.openExternal('https://github.com/screeny05');
+    }
+}
+
+
+export class GameWindow extends React.Component<any, any> {
+    constructor(props: any){
+        super(props);
+        this.state = {
+            state: new GameLogic()
+        }
+    }
+
+    render(){
+        return (
+            <WindowFrame>
+                <Game state={this.state.state} onResize={this.handleResize}/>
+            </WindowFrame>
+        );
+    }
+
+    @bind
+    handleResize(){
+        console.log('resize');
     }
 }
