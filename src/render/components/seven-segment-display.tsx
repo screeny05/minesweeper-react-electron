@@ -1,13 +1,13 @@
 import * as React from "react";
-import styled from 'styled-components';
+import styled from './form/theme-interface';
 
-interface SegmentContainerProps {
+interface ISegmentContainerProps {
     size: number;
     length: number;
     padding: number;
 }
 
-interface SegmentProps {
+interface ISegmentProps {
     active?: boolean;
     isHorizontal?: boolean;
     size: number;
@@ -15,14 +15,14 @@ interface SegmentProps {
     padding: number;
 }
 
-const SegmentContainer = styled.div.attrs<SegmentContainerProps>({})`
+const SegmentContainer = styled.div.attrs<ISegmentContainerProps>({})`
     position: relative;
     display: inline-block;
     width: ${props => props.length + props.padding}px;
     height: ${props => 2 * props.length + props.padding}px;
 `;
 
-const Segment = styled.div.attrs<SegmentProps>({})`
+const Segment = styled.div.attrs<ISegmentProps>({})`
     position: absolute;
     background: red;
     opacity: ${props => props.active ? 1 : 0.3};
@@ -80,7 +80,7 @@ const SegmentBottom = SegmentTop.extend`
     clip-path: polygon(${props => props.size}px 0%, calc(100% - ${props => props.size}px) 0%, 100% 100%, 0% 100%);
 `;
 
-interface SevenSegmentDisplayProps {
+interface ISevenSegmentDisplayProps {
     char: string;
     size?: number;
     length?: number;
@@ -125,7 +125,8 @@ export const renderMap = {
     X: 'H',
     Y: 0b00011110,
     Z: '2',
-    ' ': 0b00000000
+    ' ': 0b00000000,
+    '-': 0b00001000
 };
 
 const getRenderMask = (char: string): number => {
@@ -139,7 +140,7 @@ const getRenderMask = (char: string): number => {
     return mapped;
 }
 
-export const SevenSegmentDisplay: React.SFC<SevenSegmentDisplayProps> = ({ char, size = 3, length = 9, padding = 1 }) => {
+export const SevenSegmentDisplay: React.StatelessComponent<ISevenSegmentDisplayProps> = ({ char, size = 3, length = 9, padding = 1 }) => {
     const styleProps = { size, length, padding };
 
     const renderMask = getRenderMask(char);
@@ -166,11 +167,22 @@ const SevenSegmentDisplayArrayContainer = styled.div`
     }
 `;
 
-export const SevenSegmentDisplayArray: React.SFC<any> = ({ string = '000', displayCount = 3 }) => {
+export const SevenSegmentDisplayArray: React.StatelessComponent<any> = ({ string = '000', displayCount = 3 }) => {
     const segments = string.slice(string.length - displayCount).split('');
+
     return (
         <SevenSegmentDisplayArrayContainer>
-            {new Array(displayCount).fill(null).map((_, i) => <SevenSegmentDisplay key={i} char={segments[i]}/>)}
+            {new Array(displayCount).fill(null).map((_, i) =>
+                <SevenSegmentDisplay key={i} char={segments[i]}/>
+            )}
         </SevenSegmentDisplayArrayContainer>
     );
 }
+
+export const formatNumberForDisplayArray = (number: number, displayCount: number = 3): string => {
+    let text = number.toString().padStart(displayCount, '0');
+    if(number < 0){
+        text = '-' + text.slice(1);
+    }
+    return text;
+};

@@ -1,133 +1,37 @@
 import * as React from 'react';
-import { Board, BoardLogic } from './board';
-import { observable, action, computed } from 'mobx';
 import { observer } from 'mobx-react';
-import { SevenSegmentDisplayArray } from './seven-segment-display';
-import { Panel } from './panel';
-import { WindowsButton } from './cell';
-import { MenuStrip, MenuStripSubItem, MenuStripSubSeparator, MenuStripItem } from './menu-strip';
 import { bind } from 'bind-decorator';
-const { ipcRenderer, shell } = window.require('electron');
+import { IpcBridge } from '../ipc-bridge';
 
-import faceCool from '../../assets/images/face-cool.png';
-import faceDead from '../../assets/images/face-dead.png';
-import faceFrown from '../../assets/images/face-frown.png';
-import faceSmile from '../../assets/images/face-smile.png';
-import faceSurprise from '../../assets/images/face-surprise.png';
-import { WindowFrame } from './form/window-frame';
+import { SevenSegmentDisplayArray, formatNumberForDisplayArray } from './seven-segment-display';
+import { Panel } from './form/panel';
+import { Button } from './form/button';
+import { MenuStrip, MenuStripSubItem, MenuStripSubSeparator, MenuStripItem } from './form/menu-strip';
+import { Window } from './form/window';
+import { Board } from './board';
 
-export enum GameLogicState {
-    Running,
-    Won,
-    Failed,
-    Stopped,
+import { Game as GameState, BoardLevels, GameRunningState, IBoardLevel } from '../state/game';
+
+import imgIcon from '../../assets/images/icon.png';
+import imgFaceCool from '../../assets/images/face-cool.png';
+import imgFaceDead from '../../assets/images/face-dead.png';
+import imgFaceFrown from '../../assets/images/face-frown.png';
+import imgFaceSmile from '../../assets/images/face-smile.png';
+import imgFaceSurprise from '../../assets/images/face-surprise.png';
+
+interface IGameProps {
+    state: GameState;
+    onResize?: () => void;
 }
 
-interface BoardLevel {
-    title: string;
-    width: number;
-    height: number;
-    mines: number;
-}
-
-const boardLevels = {
-    beginner: {
-        title: 'Beginner',
-        width: 9,
-        height: 9,
-        mines: 12
-    },
-    intermediate: {
-        title: 'Intermediate',
-        width: 16,
-        height: 16,
-        mines: 40
-    },
-    expert: {
-        title: 'Expert',
-        width: 30,
-        height: 16,
-        mines: 99
-    }
-}
-
-export class GameLogic {
-    board: BoardLogic;
-
-    @observable
-    state: GameLogicState = GameLogicState.Stopped;
-
-    @observable
-    elapsedSeconds: number = 0;
-
-    @observable
-    isTimerRunning: boolean = false;
-
-    startTime: Date;
-    timerId: NodeJS.Timer;
-    level: BoardLevel;
-
-    constructor(){
-        this.level = boardLevels.beginner;
-        this.start();
-    }
-
-    restart(){
-        this.stop();
-        this.start();
-    }
-
-    stop(){
-        clearInterval(this.timerId);
-        this.isTimerRunning = false;
-        this.state = GameLogicState.Stopped;
-    }
-
-    start(){
-        if(this.state === GameLogicState.Running){
-            return;
-        }
-
-        this.state = GameLogicState.Running;
-        this.elapsedSeconds = 0;
-        this.board = new BoardLogic(this, this.level.width, this.level.height, this.level.mines);
-    }
-
-    startTimer(){
-        this.startTime = new Date();
-        this.isTimerRunning = true;
-        this.timerId = setInterval(this.updateTimer, 1000);
-    }
-
-    fail(){
-        this.stop();
-        this.state = GameLogicState.Failed;
-    }
-
-    win(){
-        this.stop();
-        this.state = GameLogicState.Won;
-    }
-
-    @action.bound
-    updateTimer(){
-        this.elapsedSeconds = Math.round((new Date().getTime() - this.startTime.getTime()) / 1000);
-    }
-}
-
-interface GameProps {
-    state: GameLogic;
-    onResize: () => void;
-}
-
-interface GameState {
+interface IGameState {
     resetButtonDown: boolean;
     cellDown: boolean;
 }
 
 @observer
-export class Game extends React.Component<GameProps, GameState> {
-    constructor(props: GameProps){
+export class Game extends React.Component<IGameProps, IGameState> {
+    constructor(props: IGameProps){
         super(props);
         this.state = {
             resetButtonDown: false,
@@ -150,28 +54,27 @@ export class Game extends React.Component<GameProps, GameState> {
                     <MenuStripItem key='menu-game' title='Game'>
                         <MenuStripSubItem key='menu-new' title='New' onClick={this.commandNewGame}/>
                         <MenuStripSubSeparator/>
-                        <MenuStripSubItem key='menu-beginner' title='Beginner' onClick={() => this.commandSetLevel(boardLevels.beginner)}/>
-                        <MenuStripSubItem key='menu-intermediate' title='Intermediate' onClick={() => this.commandSetLevel(boardLevels.intermediate)}/>
-                        <MenuStripSubItem key='menu-expert' title='Expert' onClick={() => this.commandSetLevel(boardLevels.expert)}/>
+                        <MenuStripSubItem key='menu-beginner' title='Beginner' onClick={() => this.commandSetLevel(BoardLevels.beginner)}/>
+                        <MenuStripSubItem key='menu-intermediate' title='Intermediate' onClick={() => this.commandSetLevel(BoardLevels.intermediate)}/>
+                        <MenuStripSubItem key='menu-expert' title='Expert' onClick={() => this.commandSetLevel(BoardLevels.expert)}/>
                         <MenuStripSubItem key='menu-custom' title='Custom&hellip;'/>
                         <MenuStripSubSeparator/>
                         <MenuStripSubItem key='menu-exit' title='Exit' onClick={this.commandClose}/>
                     </MenuStripItem>
                     <MenuStripItem key='menu-help' title='Help'>
-                        <MenuStripSubItem key='menu-about' title='About'/>
-                        <MenuStripSubItem key='menu-github' title='GitHub' onClick={this.commandGithub}/>
+                        <MenuStripSubItem key='menu-about' title='About' onClick={this.commandAbout}/>
                     </MenuStripItem>
                 </MenuStrip>
                 <Panel hasBorder borderSize={3} padding={6} style={{ display: 'inline-flex', flexDirection: 'column' }}>
                     <Panel hasBorder isBorderInset borderSize={2} isBlock padding={4} style={{ marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
                         <Panel hasBorder isBorderInset>
-                            <SevenSegmentDisplayArray string={this.props.state.board.remainingUncheckedCount.toString().padStart(3, '0')}/>
+                            <SevenSegmentDisplayArray string={formatNumberForDisplayArray(this.props.state.board.remainingUncheckedCount)}/>
                         </Panel>
-                        <WindowsButton onClick={this.handleReset} onMouseDown={this.handleResetDown} style={{ width: 24, height: 24 }}>
+                        <Button onClick={this.handleReset} onMouseDown={this.handleResetDown} style={{ width: 24, height: 24 }}>
                             {this.getResetButtonContent()}
-                        </WindowsButton>
+                        </Button>
                         <Panel hasBorder isBorderInset>
-                            <SevenSegmentDisplayArray string={this.props.state.elapsedSeconds.toString().padStart(3, '0')}/>
+                            <SevenSegmentDisplayArray string={formatNumberForDisplayArray(this.props.state.elapsedSeconds)}/>
                         </Panel>
                     </Panel>
                     <Panel hasBorder isBorderInset borderSize={3}>
@@ -184,16 +87,16 @@ export class Game extends React.Component<GameProps, GameState> {
 
     getResetButtonContent(): JSX.Element {
         const { state } = this.props;
-        let src = faceSmile;
+        let src = imgFaceSmile;
 
-        if(state.state === GameLogicState.Won){
-            src = faceCool;
-        } else if(state.state === GameLogicState.Failed){
-            src = faceDead;
+        if(state.state === GameRunningState.Won){
+            src = imgFaceCool;
+        } else if(state.state === GameRunningState.Failed){
+            src = imgFaceDead;
         } else if(this.state.cellDown){
-            src = faceSurprise;
-        } else if(state.state !== GameLogicState.Running || this.state.resetButtonDown){
-            src = faceFrown;
+            src = imgFaceSurprise;
+        } else if(state.state !== GameRunningState.Running || this.state.resetButtonDown){
+            src = imgFaceFrown;
         }
 
         return <img src={src} style={{ imageRendering: 'pixelated' }}/>;
@@ -236,10 +139,10 @@ export class Game extends React.Component<GameProps, GameState> {
     }
 
     @bind
-    commandSetLevel(level: BoardLevel){
+    commandSetLevel(level: IBoardLevel){
         this.props.state.level = level;
         this.props.state.restart();
-        this.forceUpdate(() => this.props.onResize());
+        this.forceUpdate(() => this.props.onResize ? this.props.onResize() : null);
     }
 
     @bind
@@ -249,39 +152,30 @@ export class Game extends React.Component<GameProps, GameState> {
 
     @bind
     commandClose(){
-        ipcRenderer.send('close');
+        IpcBridge.close();
     }
 
     @bind
     commandAbout(){
-
-    }
-
-    @bind
-    commandGithub(){
-        shell.openExternal('https://github.com/screeny05');
+        IpcBridge.open('https://github.com/screeny05/minesweeper-react-electron');
     }
 }
-
 
 export class GameWindow extends React.Component<any, any> {
     constructor(props: any){
         super(props);
         this.state = {
-            state: new GameLogic()
+            state: new GameState(),
+            contentWidth: 400,
+            contentHeight: 400
         }
     }
 
     render(){
         return (
-            <WindowFrame>
-                <Game state={this.state.state} onResize={this.handleResize}/>
-            </WindowFrame>
+            <Window shrinkSizeToContent title='Minesweeper' icon={imgIcon} maximizable={false} resizable={false}>
+                <Game state={this.state.state}/>
+            </Window>
         );
-    }
-
-    @bind
-    handleResize(){
-        console.log('resize');
     }
 }

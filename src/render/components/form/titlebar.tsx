@@ -1,20 +1,23 @@
 import * as React from 'react';
 import styled from './theme-interface';
-import { WindowsButton } from '../cell';
-
-import windowMinimize from '../../../assets/images/window-minimize.png';
-import windowMaximize from '../../../assets/images/window-maximize.png';
-import windowClose from '../../../assets/images/window-close.png';
 import { bind } from 'bind-decorator';
+import { Button } from './button';
 
-interface WindowTitlebarContainerProps {
+import imgWindowMinimize from '../../../assets/images/window-minimize.png';
+import imgWindowMaximize from '../../../assets/images/window-maximize.png';
+import imgWindowClose from '../../../assets/images/window-close.png';
+
+
+interface ITitlebarBackgroundProps {
     isFocused: boolean;
 }
 
-const WindowTitlebarContainer = styled.div.attrs<WindowTitlebarContainerProps>({})`
-    background: ${props => props.isFocused ? props.theme.titlebarGradientFocus : props.theme.titlebarGradientBlur};
-    color: #fff;
-    font-family: 'tahoma';
+const TitlebarBackground = styled.div.attrs<ITitlebarBackgroundProps>({})`
+    background: ${props => props.isFocused ?
+        `linear-gradient(to right, ${props.theme.ActiveCaption}, ${props.theme.GradientActiveCaption})` :
+        `linear-gradient(to right, ${props.theme.InactiveCaption}, ${props.theme.GradientInactiveCaption})`
+    };
+    color: ${props => props.isFocused ? props.theme.ActiveCaptionText : props.theme.InactiveCaptionText};
     font-size: 11px;
     height: 18px;
     line-height: 14px;
@@ -24,13 +27,27 @@ const WindowTitlebarContainer = styled.div.attrs<WindowTitlebarContainerProps>({
     display: flex;
 `;
 
-const WindowTitlebarTitle = styled.div`
+const TitlebarTitle = styled.div`
     overflow: hidden;
     text-overflow: ellipsis;
 `;
 
-interface WindowTitlebarProps {
+const TitlebarIconContainer = styled.div`
+    width: 16px;
+    height: 16px;
+    padding: 0 4px 0 1px;
+    box-sizing: content-box;
+    image-rendering: pixelated;
+
+    & > img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+`;
+
+interface ITitlebarProps {
     title: string;
+    icon?: string;
     isFocused?: boolean;
     maximizeEnabled?: boolean;
     minimizeEnabled?: boolean;
@@ -38,9 +55,11 @@ interface WindowTitlebarProps {
     onMinimizeClick?: () => void;
     onMaximizeClick?: () => void;
     onCloseClick?: () => void;
+    onDoubleClick?: () => void;
+    onDoubleClickIcon?: () => void;
 }
 
-export class WindowTitlebar extends React.Component<WindowTitlebarProps, any> {
+export class Titlebar extends React.PureComponent<ITitlebarProps, any> {
     render(){
         const minimizeEnabled = this.props.minimizeEnabled !== false;
         const maximizeEnabled = this.props.maximizeEnabled !== false;
@@ -49,45 +68,58 @@ export class WindowTitlebar extends React.Component<WindowTitlebarProps, any> {
         const hasSecondaryControls = minimizeEnabled || maximizeEnabled;
 
         return (
-            <WindowTitlebarContainer isFocused={isFocused}>
-                <WindowTitlebarTitle style={{ marginRight: 'auto' }}>
-                    {this.props.title}
-                </WindowTitlebarTitle>
-                {hasSecondaryControls ? (
-                    <React.Fragment>
-                        <WindowsButton style={{ width: 16, height: 14 }} disabled={!minimizeEnabled} clickable={minimizeEnabled} onClick={this.onMinimizeClick}>
-                            <img src={windowMinimize} style={{ imageRendering: 'pixelated', width: 9, height: 9 }}/>
-                        </WindowsButton>
-                        <WindowsButton style={{ width: 16, height: 14 }} disabled={!maximizeEnabled} clickable={maximizeEnabled} onClick={this.onMaximizeClick}>
-                            <img src={windowMaximize} style={{ imageRendering: 'pixelated', width: 9, height: 9 }}/>
-                        </WindowsButton>
-                    </React.Fragment>
+            <TitlebarBackground isFocused={isFocused} onDoubleClick={this.onDoubleClick}>
+                {this.props.icon ? (
+                    <TitlebarIconContainer onDoubleClick={this.onDoubleClickIcon}>
+                        <img src={this.props.icon}/>
+                    </TitlebarIconContainer>
                 ) : null}
-                <WindowsButton style={{ width: 16, height: 14, marginLeft: 2 }} disabled={!closeEnabled} clickable={closeEnabled} onClick={this.onCloseClick}>
-                    <img src={windowClose} style={{ imageRendering: 'pixelated', width: 9, height: 9 }}/>
-                </WindowsButton>
-            </WindowTitlebarContainer>
+                <TitlebarTitle style={{ marginRight: 'auto' }}>
+                    {this.props.title}
+                </TitlebarTitle>
+                {hasSecondaryControls ? (<React.Fragment>
+                    <Button style={{ width: 16, height: 14 }} disabled={!minimizeEnabled} clickable={minimizeEnabled} onClick={this.onMinimizeClick}>
+                        <img src={imgWindowMinimize} style={{ imageRendering: 'pixelated', width: 9, height: 9 }}/>
+                    </Button>
+                    <Button style={{ width: 16, height: 14 }} disabled={!maximizeEnabled} clickable={maximizeEnabled} onClick={this.onMaximizeClick}>
+                        <img src={imgWindowMaximize} style={{ imageRendering: 'pixelated', width: 9, height: 9 }}/>
+                    </Button>
+                </React.Fragment>) : null}
+                <Button style={{ width: 16, height: 14, marginLeft: 2 }} disabled={!closeEnabled} clickable={closeEnabled} onClick={this.onCloseClick}>
+                    <img src={imgWindowClose} style={{ imageRendering: 'pixelated', width: 9, height: 9 }}/>
+                </Button>
+            </TitlebarBackground>
         );
+    }
+
+    callbackGuard(fn?: Function){
+        if(fn){
+            fn();
+        }
     }
 
     @bind
     onMinimizeClick(){
-        if(this.props.onMinimizeClick){
-            this.props.onMinimizeClick();
-        }
+        this.callbackGuard(this.props.onMinimizeClick);
     }
 
     @bind
     onMaximizeClick(){
-        if(this.props.onMaximizeClick){
-            this.props.onMaximizeClick();
-        }
+        this.callbackGuard(this.props.onMaximizeClick);
     }
 
     @bind
     onCloseClick(){
-        if(this.props.onCloseClick){
-            this.props.onCloseClick();
-        }
+        this.callbackGuard(this.props.onCloseClick);
+    }
+
+    @bind
+    onDoubleClick(){
+        this.callbackGuard(this.props.onDoubleClick);
+    }
+
+    @bind
+    onDoubleClickIcon(){
+        this.callbackGuard(this.props.onDoubleClickIcon);
     }
 }

@@ -1,12 +1,12 @@
 import * as React from "react";
-import { WindowFrameProps, WindowFrameState } from "./window-frame";
+import { WindowFrameProps, IWindowFrameState } from "./window-frame";
 import { IpcBridge } from "../../ipc-bridge";
 
-interface ChildWindowProps extends WindowFrameProps {
+interface IChildWindowProps extends WindowFrameProps {
     hash: string;
 }
 
-export class ChildWindow extends React.Component<ChildWindowProps, WindowFrameState> {
+export class ChildWindow extends React.Component<IChildWindowProps, IWindowFrameState> {
     static defaultProps: Partial<WindowFrameProps> = {
         resizable: true,
         width: 800,
@@ -16,7 +16,7 @@ export class ChildWindow extends React.Component<ChildWindowProps, WindowFrameSt
         maximizable: true
     };
 
-    constructor(props: ChildWindowProps){
+    constructor(props: IChildWindowProps){
         super(props);
     }
 

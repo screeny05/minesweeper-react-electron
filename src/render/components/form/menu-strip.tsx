@@ -1,14 +1,14 @@
 import * as React from 'react';
-import styled from 'styled-components';
+import styled from './theme-interface';
 import { bind } from 'bind-decorator';
 import { Panel } from './panel';
-const { ipcRenderer } = window.require('electron');
+import { IpcBridge } from '../../ipc-bridge';
 
-interface MenuStripProps {
+interface IMenuStripProps {
     children: React.ReactElement<MenuStripItem>[];
 }
 
-export class MenuStrip extends React.Component<MenuStripProps, any> {
+export class MenuStrip extends React.Component<IMenuStripProps, any> {
     render(){
         return (
             <div style={{ padding: '1px 0 2px 0' }}>
@@ -18,11 +18,11 @@ export class MenuStrip extends React.Component<MenuStripProps, any> {
     }
 }
 
-interface MenuStripItemContainerProps {
+interface IMenuStripItemContainerProps {
     isActive: boolean;
 }
 
-const MenuStripItemContainer = styled.div.attrs<MenuStripItemContainerProps>({})`
+const MenuStripItemContainer = styled.div.attrs<IMenuStripItemContainerProps>({})`
     user-select: none;
     background: transparent;
     border: none;
@@ -59,18 +59,18 @@ const MenuStripItemListContainer = styled.div`
     background: tomato;
 `;
 
-interface MenuStripItemProps {
+interface IMenuStripItemProps {
     title: string;
 }
 
-interface MenuStripItemState {
+interface IMenuStripItemState {
     isOpen: boolean;
 }
 
-export class MenuStripItem extends React.Component<MenuStripItemProps, MenuStripItemState> {
+export class MenuStripItem extends React.Component<IMenuStripItemProps, IMenuStripItemState> {
     containerRef: any;
 
-    constructor(props: MenuStripItemProps){
+    constructor(props: IMenuStripItemProps){
         super(props);
 
         this.containerRef = React.createRef();
@@ -82,12 +82,12 @@ export class MenuStripItem extends React.Component<MenuStripItemProps, MenuStrip
 
     componentDidMount(){
         document.addEventListener('mouseup', this.handleMouseupOutside, true);
-        ipcRenderer.on('window-blur', this.onWindowBlur);
+        IpcBridge.on('window-blur', this.onWindowBlur);
     }
 
     componentWillUnmount(){
         document.removeEventListener('mouseup', this.handleMouseupOutside);
-        ipcRenderer.removeListener('window-blur', this.onWindowBlur);
+        IpcBridge.off('window-blur', this.onWindowBlur);
     }
 
     render(){
@@ -146,12 +146,12 @@ const MenuStripSubItemContainer = styled.div`
     }
 `;
 
-interface MenuStripSubItemProps {
+interface IMenuStripSubItemProps {
     title: string;
     onClick?: () => void;
 }
 
-export class MenuStripSubItem extends React.Component<MenuStripSubItemProps, any> {
+export class MenuStripSubItem extends React.Component<IMenuStripSubItemProps, any> {
     render(){
         return (
             <MenuStripSubItemContainer onClick={this.props.onClick}>

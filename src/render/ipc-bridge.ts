@@ -1,6 +1,7 @@
-import { IpcCreateParams } from "./ipc-create-params";
+const electron = window.require('electron');
 
-const ipcRenderer: Electron.IpcRenderer = window.require('electron').ipcRenderer;
+const ipcRenderer: Electron.IpcRenderer = electron.ipcRenderer;
+const shell: Electron.Shell = electron.shell;
 
 export class IpcBridge {
     static send(channel: string, ...args: any[]): void {
@@ -34,7 +35,15 @@ export class IpcBridge {
         IpcBridge.send('set-size', width, height);
     }
 
-    static createWindow(params: IpcCreateParams){
-        IpcBridge.send('create-window', params);
+    static createWindow(hash: string, params: Electron.BrowserWindowConstructorOptions){
+        IpcBridge.send('create-window', hash, params);
+    }
+
+    static setOpts(params: Electron.BrowserWindowConstructorOptions){
+        IpcBridge.send('set-opts', params);
+    }
+
+    static open(path: string){
+        shell.openExternal(path);
     }
 }

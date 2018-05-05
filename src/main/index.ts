@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join as pathJoin } from 'path';
 import { format as urlFormat, URL } from 'url';
-import { IpcCreateParams } from '../render/ipc-create-params';
 
 class BrowserWindowWrapper {
     window: BrowserWindow;
@@ -25,6 +24,7 @@ class BrowserWindowWrapper {
         this.window.on('focus', this.handleWindowFocusToggle.bind(this, true));
         this.window.on('blur', this.handleWindowFocusToggle.bind(this, false));
         this.on('frame-mount', this.handleFrameMount.bind(this));
+        this.on('set-opts', this.handleSetOpts.bind(this));
         this.on('set-size', this.handleWindowCommand.bind(this, 'setSize'));
         this.on('minimize', this.handleWindowCommand.bind(this, 'minimize'));
         this.on('maximize', this.handleWindowCommand.bind(this, 'maximize'));
@@ -33,7 +33,7 @@ class BrowserWindowWrapper {
 
     on(channel: string, cb: (e: Electron.Event, ...args: any[]) => void): void {
         ipcMain.on(channel, (e: Electron.Event, ...args: any[]) => {
-            if(!this.window || this.window.webContents !== e.sender){
+            if(!this.window || this.window.isDestroyed() || this.window.webContents !== e.sender){
                 return;
             }
             cb(e, ...args);
@@ -41,6 +41,9 @@ class BrowserWindowWrapper {
     }
 
     send(channel: string, ...data: any[]): void {
+        if(this.window.isDestroyed()){
+            return;
+        }
         this.window.webContents.send(channel, ...data);
     }
 
@@ -56,12 +59,35 @@ class BrowserWindowWrapper {
     handleWindowCommand(command: string, e: Electron.Event, ...args: any[]){
         this.window[command](...args);
     }
+
+    handleSetOpts(e: Electron.Event, opts: Electron.BrowserWindowConstructorOptions){
+        if(typeof opts.resizable !== 'undefined'){
+            this.window.setResizable(opts.resizable);
+        }
+        if(typeof opts.width !== 'undefined' && typeof opts.height !== 'undefined'){
+            this.window.setSize(opts.width, opts.height);
+        }
+        if(typeof opts.closable !== 'undefined'){
+            this.window.setClosable(opts.closable);
+        }
+        if(typeof opts.minimizable !== 'undefined'){
+            this.window.setMinimizable(opts.minimizable);
+        }
+        if(typeof opts.maximizable !== 'undefined'){
+            this.window.setMaximizable(opts.maximizable);
+        }
+    }
 }
 
 const windows: BrowserWindowWrapper[] = [];
 
-const addWindow = (params: IpcCreateParams) => {
-    windows.push(new BrowserWindowWrapper(getStartUrl(params.hash), params.windowParams));
+const addWindow = (hash: string, params: Electron.BrowserWindowConstructorOptions) => {
+    windows.push(new BrowserWindowWrapper(getStartUrl(hash), {
+        transparent: true,
+        frame: false,
+        show: false,
+        ...params
+    }));
 };
 
 const getStartUrl = (hash: string) => {
@@ -78,21 +104,13 @@ const getStartUrl = (hash: string) => {
     }) + hash;
 }
 
-ipcMain.on('create-window', (e: Electron.Event, params: IpcCreateParams) => {
-    addWindow(params);
+ipcMain.on('create-window', (e: Electron.Event, hash: string, params: Electron.BrowserWindowConstructorOptions) => {
+    addWindow(hash, params);
 });
 
 // startup window
-addWindow({
-    hash: 'main',
-    windowParams: {
-        width: 800,
-        height: 600,
-        //frame: false,
-        //show: false,
-        //transparent: true,
-        //resizable: false,
-    }
+addWindow('main', {
+    resizable: false
 });
 
 // Quit when all windows are closed.

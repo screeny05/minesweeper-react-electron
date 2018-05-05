@@ -1,11 +1,9 @@
 import * as React from 'react';
-import { injectGlobal } from 'styled-components';
-import { themeRedmond } from './theme-redmond';
-import { ThemeProvider } from './theme-interface';
+import { ThemeProvider, ColorScheme, injectGlobal } from './theme-interface';
 
 import { IpcBridge } from '../../ipc-bridge';
-import { Panel } from '../panel';
-import { WindowTitlebar } from './titlebar';
+import { Panel } from './panel';
+import { Titlebar } from './titlebar';
 import { bind } from 'bind-decorator';
 
 injectGlobal`
@@ -22,7 +20,7 @@ injectGlobal`
     }
 `;
 
-export interface WindowFrameProps {
+export interface IWindowProps {
     resizable?: boolean;
     width?: number;
     height?: number;
@@ -30,31 +28,35 @@ export interface WindowFrameProps {
     minimizable?: boolean;
     maximizable?: boolean;
     shrinkSizeToContent?: boolean;
+    title: string;
+    icon?: string;
 }
 
-export interface WindowFrameState {
+export interface IWindowState {
     isFocused: boolean;
 }
 
-export class WindowFrame extends React.Component<WindowFrameProps, WindowFrameState> {
-    static defaultProps: Partial<WindowFrameProps> = {
-        resizable: true,
+export class Window extends React.Component<IWindowProps, IWindowState> {
+    static defaultProps: Partial<IWindowProps> = {
         width: 800,
         height: 600,
+        resizable: true,
         closable: true,
-        minimizable: true,
         maximizable: true,
-        shrinkSizeToContent: false,
+        minimizable: true,
+        shrinkSizeToContent: false
     };
 
     frameRef: any;
 
-    constructor(props: WindowFrameProps){
+    constructor(props: IWindowProps){
         super(props);
         this.frameRef = React.createRef();
         this.state = {
             isFocused: false
         };
+
+        this.componentWillReceiveProps();
     }
 
     componentDidMount(){
@@ -69,27 +71,51 @@ export class WindowFrame extends React.Component<WindowFrameProps, WindowFrameSt
         IpcBridge.off('window-blur', this.onWindowBlur);
     }
 
+    componentWillReceiveProps(){
+        document.title = this.props.title;
+
+        IpcBridge.setOpts({
+            width: this.props.width,
+            height: this.props.height,
+            resizable: this.props.resizable,
+            closable: this.props.closable,
+            maximizable: this.props.maximizable,
+            minimizable: this.props.minimizable
+        });
+    }
+
     render(){
+        let extendedChildren = this.props.children;
+        if(this.props.shrinkSizeToContent){
+            extendedChildren = React.Children.map<React.ReactNode>(this.props.children, child => React.cloneElement(child as any, {
+                onResize: this.setWindowSizeToContent
+            }));
+        }
+
         return (
-            <ThemeProvider theme={themeRedmond}>
+            <ThemeProvider theme={ColorScheme}>
                 <div
                     style={{
                         padding: 2,
-                        display: this.props.shrinkSizeToContent ? 'inline-block' : 'block',
-                        fontFamily: 'tahoma'
+                        display: this.props.shrinkSizeToContent ? 'inline-block' : 'block'
                     }}
                     ref={this.frameRef}
                 >
-                    <Panel hasBorder borderSize={2} padding={2} background={'#d4d0c9'}>
-                        <WindowTitlebar
-                            title='Minesweeper'
-                            maximizeEnabled={false}
+                    <Panel hasBorder borderSize={2} padding={2} background={ColorScheme.Window}>
+                        <Titlebar
+                            title={this.props.title}
+                            icon={this.props.icon}
+                            maximizeEnabled={this.props.maximizable}
+                            minimizeEnabled={this.props.minimizable}
+                            closeEnabled={this.props.closable}
                             onMinimizeClick={IpcBridge.minimize}
                             onMaximizeClick={IpcBridge.maximize}
                             onCloseClick={IpcBridge.close}
+                            onDoubleClick={this.props.maximizable ? IpcBridge.maximize : undefined}
+                            onDoubleClickIcon={IpcBridge.close}
                             isFocused={this.state.isFocused}
                         />
-                        {this.props.children}
+                        {extendedChildren}
                     </Panel>
                 </div>
             </ThemeProvider>
