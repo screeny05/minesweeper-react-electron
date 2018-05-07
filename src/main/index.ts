@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join as pathJoin } from 'path';
 import { format as urlFormat, URL } from 'url';
+import { type as getOsType } from 'os';
 
 class BrowserWindowWrapper {
     window: BrowserWindow;
@@ -16,19 +17,18 @@ class BrowserWindowWrapper {
     init(url: string, opt: Electron.BrowserWindowConstructorOptions): void {
         this.window = new BrowserWindow(opt);
         this.subscribeEvents();
-        this.window.webContents.openDevTools();
         this.window.loadURL(url);
     }
 
     subscribeEvents(): void {
-        this.window.on('focus', this.handleWindowFocusToggle.bind(this, true));
-        this.window.on('blur', this.handleWindowFocusToggle.bind(this, false));
+        this.on('close', () => this.sendParent('closed'));
         this.on('frame-mount', this.handleFrameMount.bind(this));
         this.on('set-opts', this.handleSetOpts.bind(this));
         this.on('set-size', this.handleWindowCommand.bind(this, 'setSize'));
         this.on('minimize', this.handleWindowCommand.bind(this, 'minimize'));
         this.on('maximize', this.handleWindowCommand.bind(this, 'maximize'));
         this.on('close', this.handleWindowCommand.bind(this, 'close'));
+        this.on('send-parent', this.handleSendParent.bind(this));
     }
 
     on(channel: string, cb: (e: Electron.Event, ...args: any[]) => void): void {
@@ -40,20 +40,28 @@ class BrowserWindowWrapper {
         });
     }
 
-    send(channel: string, ...data: any[]): void {
+    send(channel: string, ...args: any[]): void {
         if(this.window.isDestroyed()){
             return;
         }
-        this.window.webContents.send(channel, ...data);
+        this.window.webContents.send(channel, ...args);
+    }
+
+    sendParent(channel: string, ...args: any[]): void {
+        if(this.window.isDestroyed()){
+            return;
+        }
+        const parent = this.window.getParentWindow();
+        if(!parent || parent.isDestroyed()){
+            return;
+        }
+
+        parent.webContents.send(`from-child-${this.window.id}`, channel, args);
     }
 
     handleFrameMount(e: Electron.Event){
         this.window.show();
-        this.handleWindowFocusToggle(this.window.isFocused());
-    }
-
-    handleWindowFocusToggle(isFocused: boolean){
-        this.send(isFocused ? 'window-focus' : 'window-blur');
+        this.send('initial-focus', this.window.isFocused());
     }
 
     handleWindowCommand(command: string, e: Electron.Event, ...args: any[]){
@@ -61,6 +69,9 @@ class BrowserWindowWrapper {
     }
 
     handleSetOpts(e: Electron.Event, opts: Electron.BrowserWindowConstructorOptions){
+        if(!opts){
+            return;
+        }
         if(typeof opts.resizable !== 'undefined'){
             this.window.setResizable(opts.resizable);
         }
@@ -77,17 +88,28 @@ class BrowserWindowWrapper {
             this.window.setMaximizable(opts.maximizable);
         }
     }
+
+    handleSendParent(e: Electron.Event, channel: string, ...args: any[]){
+        this.sendParent(channel, ...args);
+    }
 }
 
 const windows: BrowserWindowWrapper[] = [];
 
-const addWindow = (hash: string, params: Electron.BrowserWindowConstructorOptions) => {
-    windows.push(new BrowserWindowWrapper(getStartUrl(hash), {
+const addWindow = (hash: string, params: Electron.BrowserWindowConstructorOptions, props: any = {}) => {
+    const window = new BrowserWindowWrapper(getStartUrl(hash), {
         transparent: true,
         frame: false,
-        show: false,
         ...params
-    }));
+    });
+    windows.push(window);
+
+    // send props to window
+    window.on('get-forwarded-props', (e) => {
+        e.returnValue = props;
+    });
+
+    return window;
 };
 
 const getStartUrl = (hash: string) => {
@@ -101,11 +123,24 @@ const getStartUrl = (hash: string) => {
         pathname: pathJoin(__dirname, '../dist/index.html'),
         protocol: 'file:',
         slashes: true
-    }) + hash;
+    }) + '#' + hash;
 }
 
-ipcMain.on('create-window', (e: Electron.Event, hash: string, params: Electron.BrowserWindowConstructorOptions) => {
-    addWindow(hash, params);
+ipcMain.on('create-window', (e: Electron.Event, hash: string, params: Electron.BrowserWindowConstructorOptions, props: any) => {
+    const window = addWindow(hash, {
+        parent: windows[0].window,
+        modal: true,
+        ...params
+    }, props);
+
+    // on macOS we move the dialog box, so it won't display somewhere random
+    if(getOsType() === 'Darwin'){
+        const parentPos = windows[0].window.getPosition();
+        window.window.setPosition(parentPos[0], parentPos[1] + 24);
+    }
+
+    // send new window id back to parent
+    e.sender.send('create-window-result', window.window.id);
 });
 
 // startup window

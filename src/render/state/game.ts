@@ -98,4 +98,19 @@ export class Game {
     updateTimer(){
         this.elapsedSeconds = Math.round((new Date().getTime() - this.startTime.getTime()) / 1000);
     }
+
+    setLevel(level: IBoardLevel){
+        level = {
+            width: Math.min(30, Math.max(9, level.width || 9)),
+            height: Math.min(24, Math.max(9, level.height || 9)),
+            mines: Math.max(10, level.mines || 10)
+        };
+        level.mines = Math.floor(Math.min(level.width * level.height * 0.85, level.mines));
+        this.level = level;
+        this.restart();
+    }
+
+    isLevel(level: IBoardLevel){
+        return this.level.height === level.height && this.level.width === level.width && this.level.mines === level.mines;
+    }
 }

@@ -8,8 +8,20 @@ export class IpcBridge {
         ipcRenderer.send(channel, ...args);
     }
 
+    static sendSync(channel: string, ...args: any[]): any {
+        return ipcRenderer.sendSync(channel, ...args);
+    }
+
+    static sendParent(channel: string, ...args: any[]){
+        IpcBridge.send('send-parent', channel, ...args);
+    }
+
     static on(channel: string, cb: (e: Electron.Event, ...args: any[]) => void): void {
         ipcRenderer.on(channel, cb);
+    }
+
+    static once(channel: string, cb: (e: Electron.Event, ...args: any[]) => void): void {
+        ipcRenderer.once(channel, cb);
     }
 
     static off(channel: string, cb?: Function): void {
@@ -35,8 +47,11 @@ export class IpcBridge {
         IpcBridge.send('set-size', width, height);
     }
 
-    static createWindow(hash: string, params: Electron.BrowserWindowConstructorOptions){
-        IpcBridge.send('create-window', hash, params);
+    static async createWindow(hash: string, params: Electron.BrowserWindowConstructorOptions = {}, props: any = {}): Promise<number> {
+        return new Promise<number>(resolve => {
+            IpcBridge.send('create-window', hash, params, props);
+            IpcBridge.once('create-window-result', (e, id) => resolve(id));
+        });
     }
 
     static setOpts(params: Electron.BrowserWindowConstructorOptions){
@@ -45,5 +60,9 @@ export class IpcBridge {
 
     static open(path: string){
         shell.openExternal(path);
+    }
+
+    static getForwardedProps<T = any>(): T {
+        return IpcBridge.sendSync('get-forwarded-props');
     }
 }

@@ -18,6 +18,7 @@ import imgFaceDead from '../../assets/images/face-dead.png';
 import imgFaceFrown from '../../assets/images/face-frown.png';
 import imgFaceSmile from '../../assets/images/face-smile.png';
 import imgFaceSurprise from '../../assets/images/face-surprise.png';
+import { ChildWindow } from './child-window';
 
 interface IGameProps {
     state: GameState;
@@ -27,16 +28,15 @@ interface IGameProps {
 interface IGameState {
     resetButtonDown: boolean;
     cellDown: boolean;
+    levelModalOpen: boolean;
 }
 
 @observer
 export class Game extends React.Component<IGameProps, IGameState> {
-    constructor(props: IGameProps){
-        super(props);
-        this.state = {
-            resetButtonDown: false,
-            cellDown: false
-        };
+    state: IGameState = {
+        resetButtonDown: false,
+        cellDown: false,
+        levelModalOpen: false
     }
 
     componentDidMount(){
@@ -48,16 +48,21 @@ export class Game extends React.Component<IGameProps, IGameState> {
     }
 
     public render() {
+        const isBoardLevelBeginner = this.props.state.isLevel(BoardLevels.beginner);
+        const isBoardLevelIntermediate = this.props.state.isLevel(BoardLevels.intermediate);
+        const isBoardLevelExpert = this.props.state.isLevel(BoardLevels.expert);
+        const isBoardLevelCustom = !isBoardLevelBeginner && !isBoardLevelIntermediate && !isBoardLevelExpert;
+
         return (
             <React.Fragment>
                 <MenuStrip>
                     <MenuStripItem key='menu-game' title='Game'>
                         <MenuStripSubItem key='menu-new' title='New' onClick={this.commandNewGame}/>
                         <MenuStripSubSeparator/>
-                        <MenuStripSubItem key='menu-beginner' title='Beginner' onClick={() => this.commandSetLevel(BoardLevels.beginner)}/>
-                        <MenuStripSubItem key='menu-intermediate' title='Intermediate' onClick={() => this.commandSetLevel(BoardLevels.intermediate)}/>
-                        <MenuStripSubItem key='menu-expert' title='Expert' onClick={() => this.commandSetLevel(BoardLevels.expert)}/>
-                        <MenuStripSubItem key='menu-custom' title='Custom&hellip;'/>
+                        <MenuStripSubItem key='menu-beginner' title='Beginner' onClick={() => this.commandSetLevel(BoardLevels.beginner)} hasCheckmark={isBoardLevelBeginner}/>
+                        <MenuStripSubItem key='menu-intermediate' title='Intermediate' onClick={() => this.commandSetLevel(BoardLevels.intermediate)} hasCheckmark={isBoardLevelIntermediate}/>
+                        <MenuStripSubItem key='menu-expert' title='Expert' onClick={() => this.commandSetLevel(BoardLevels.expert)} hasCheckmark={isBoardLevelExpert}/>
+                        <MenuStripSubItem key='menu-custom' title='Custom&hellip;' onClick={this.commandLevelModal} hasCheckmark={isBoardLevelCustom}/>
                         <MenuStripSubSeparator/>
                         <MenuStripSubItem key='menu-exit' title='Exit' onClick={this.commandClose}/>
                     </MenuStripItem>
@@ -81,6 +86,7 @@ export class Game extends React.Component<IGameProps, IGameState> {
                         <Board state={this.props.state.board} onActiveCellMouseDown={this.handleCellDown}/>
                     </Panel>
                 </Panel>
+                {this.state.levelModalOpen && <ChildWindow hash='customize' onClose={this.handleCloseCustomizeModal} onSubmit={this.commandSetLevel} forwardProps={this.props.state.level}/>}
             </React.Fragment>
         );
     }
@@ -134,20 +140,28 @@ export class Game extends React.Component<IGameProps, IGameState> {
     }
 
     @bind
+    handleCloseCustomizeModal(){
+        this.setState({
+            levelModalOpen: false
+        });
+    }
+
+    @bind
     commandNewGame(){
         this.props.state.restart();
     }
 
     @bind
     commandSetLevel(level: IBoardLevel){
-        this.props.state.level = level;
-        this.props.state.restart();
+        this.props.state.setLevel(level);
         this.forceUpdate(() => this.props.onResize ? this.props.onResize() : null);
     }
 
     @bind
     commandLevelModal(){
-
+        this.setState({
+            levelModalOpen: true
+        });
     }
 
     @bind

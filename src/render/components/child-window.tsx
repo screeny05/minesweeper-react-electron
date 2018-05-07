@@ -1,37 +1,57 @@
-import * as React from "react";
-import { WindowFrameProps, IWindowFrameState } from "./window-frame";
-import { IpcBridge } from "../../ipc-bridge";
+import * as React from 'react';
+import { IpcBridge } from '../ipc-bridge';
+import { bind } from 'bind-decorator';
 
-interface IChildWindowProps extends WindowFrameProps {
+interface IChildWindowProps {
     hash: string;
+    forwardProps?: any;
+    on?: (channel: string, ...args: any[]) => void;
+    onClose?: () => void;
+    onSubmit?: (...args: any[]) => void;
 }
 
-export class ChildWindow extends React.Component<IChildWindowProps, IWindowFrameState> {
-    static defaultProps: Partial<WindowFrameProps> = {
-        resizable: true,
-        width: 800,
-        height: 600,
-        closable: true,
-        minimizable: true,
-        maximizable: true
-    };
+interface IChildWindowState {
+    isOpen: boolean;
+    id?: number;
+}
 
-    constructor(props: IChildWindowProps){
-        super(props);
+export class ChildWindow extends React.Component<IChildWindowProps, IChildWindowState> {
+    state: IChildWindowState = {
+        isOpen: false
     }
 
-    componentDidMount(){
-        IpcBridge.createWindow({
-            hash: this.props.hash,
-            windowParams: this.props
+    shouldComponentUpdate(){
+        return false;
+    }
+
+    async componentDidMount(){
+        const id = await IpcBridge.createWindow(this.props.hash, {}, this.props.forwardProps);
+        IpcBridge.on(`from-child-${id}`, this.handleMessage);
+        this.setState({
+            id,
+            isOpen: true
         });
-    }
-
-    componentWillUnmount(){
-        IpcBridge.close();
     }
 
     render(){
         return null;
+    }
+
+    @bind
+    handleMessage(e: Electron.Event, channel: string, args: any[]){
+        if(channel === 'closed' && this.props.onClose){
+            this.setState({
+                isOpen: false
+            });
+            return this.props.onClose();
+        }
+        if(channel === 'submit' && this.props.onSubmit){
+            return this.props.onSubmit(...args);
+        }
+
+        if(!this.props.on){
+            return;
+        }
+        this.props.on(channel, ...args);
     }
 }

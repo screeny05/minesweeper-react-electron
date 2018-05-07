@@ -16,7 +16,7 @@ const BoardContainer = styled.div`
 `;
 
 @observer
-export class Board extends React.PureComponent<IBoardProps> {
+export class Board extends React.Component<IBoardProps> {
     render(){
         const { state } = this.props;
 

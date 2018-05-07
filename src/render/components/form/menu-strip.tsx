@@ -4,6 +4,9 @@ import { bind } from 'bind-decorator';
 import { Panel } from './panel';
 import { IpcBridge } from '../../ipc-bridge';
 
+import imgCheckmarkBlack from '../../../assets/images/check-black.png';
+import imgCheckmarkWhite from '../../../assets/images/check-white.png';
+
 interface IMenuStripProps {
     children: React.ReactElement<MenuStripItem>[];
 }
@@ -139,15 +142,31 @@ const MenuStripSubItemContainer = styled.div`
     margin: 1px 0;
     line-height: 11px;
     text-align: left;
+    position: relative;
 
     &:hover {
         background: #000087;
         color: #fff;
+
+        .menustrip-subitem--checkmark {
+            background: url('${imgCheckmarkWhite}');
+        }
     }
+`;
+
+const MenuStripSubItemCheckmark = styled.div.attrs({ className: 'menustrip-subitem--checkmark' })`
+    position: absolute;
+    background: url('${imgCheckmarkBlack}');
+    width: 6px;
+    height: 6px;
+    left: 4px;
+    top: 6px;
+    image-rendering: pixelated;
 `;
 
 interface IMenuStripSubItemProps {
     title: string;
+    hasCheckmark?: boolean;
     onClick?: () => void;
 }
 
@@ -155,6 +174,7 @@ export class MenuStripSubItem extends React.Component<IMenuStripSubItemProps, an
     render(){
         return (
             <MenuStripSubItemContainer onClick={this.props.onClick}>
+                {this.props.hasCheckmark === true && <MenuStripSubItemCheckmark/>}
                 {this.props.title}
             </MenuStripSubItemContainer>
         );

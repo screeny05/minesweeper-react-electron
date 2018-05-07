@@ -2,14 +2,19 @@
     "name": "minesweeper-react-mobx",
     "version": "1.0.0",
     "description": "",
-    "main": "dist/main/index.js",
+    "main": "dist/index.js",
     "scripts": {
         "start": "electron .",
         "build:main": "tsc --outDir dist src/main/index.ts",
         "build:render": "parcel build --target electron --public-url . src/render/index.html",
         "build": "npm run build:main && npm run build:render",
         "watch": "parcel --target electron src/render/index.html",
-        "dev": "ELECTRON_START_URL=http://localhost:1234/ electron ."
+        "dev": "ELECTRON_START_URL=http://localhost:1234/ electron .",
+        "package:base": "electron-packager . Minesweeper --out artifacts --overwrite --ignore src --ignore icons --ignore artifacts --ignore .cache",
+        "package:windows": "npm run package:base -- --platform win32 --arch ia32 --icon icons/win/icon.ico",
+        "package:darwin": "npm run package:base -- --platform darwin --arch x64 --icon icons/mac/icon.icns",
+        "package:linux": "npm run package:base -- --platform linux --arch x64 --icon icons/png/128x128.png",
+        "package": "npm run package:windows && npm run package:darwin && npm run package:linux"
     },
     "author": "Sebastian Langer <sl@scn.cx>",
     "license": "MIT",

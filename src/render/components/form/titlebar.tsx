@@ -24,6 +24,8 @@ const TitlebarBackground = styled.div.attrs<ITitlebarBackgroundProps>({})`
     padding: 2px;
     -webkit-app-region: drag;
     user-select: none;
+    cursor: default;
+    flex: 0 0 auto;
     display: flex;
 `;
 

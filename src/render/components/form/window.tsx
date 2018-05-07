@@ -61,14 +61,15 @@ export class Window extends React.Component<IWindowProps, IWindowState> {
 
     componentDidMount(){
         this.setWindowSizeToContent();
+        window.addEventListener('focus', this.onWindowFocus);
+        window.addEventListener('blur', this.onWindowBlur);
+        IpcBridge.once('initial-focus', (e, isFocused: boolean) => this.setState({ isFocused }));
         IpcBridge.send('frame-mount');
-        IpcBridge.on('window-focus', this.onWindowFocus);
-        IpcBridge.on('window-blur', this.onWindowBlur);
     }
 
     componentWillUnmount(){
-        IpcBridge.off('window-focus', this.onWindowFocus);
-        IpcBridge.off('window-blur', this.onWindowBlur);
+        window.removeEventListener('focus', this.onWindowFocus);
+        window.removeEventListener('blur', this.onWindowBlur);
     }
 
     componentWillReceiveProps(){
@@ -97,11 +98,23 @@ export class Window extends React.Component<IWindowProps, IWindowState> {
                 <div
                     style={{
                         padding: 2,
-                        display: this.props.shrinkSizeToContent ? 'inline-block' : 'block'
+                        display: this.props.shrinkSizeToContent ? 'inline-block' : 'block',
+                        height: this.props.shrinkSizeToContent ? undefined : '100%'
                     }}
                     ref={this.frameRef}
                 >
-                    <Panel hasBorder borderSize={2} padding={2} background={ColorScheme.Window}>
+                    <Panel
+                        hasBorder
+                        borderSize={2}
+                        padding={2}
+                        background={ColorScheme.Window}
+                        isBlock={!this.props.shrinkSizeToContent}
+                        style={{
+                            height: this.props.shrinkSizeToContent ? undefined : '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
                         <Titlebar
                             title={this.props.title}
                             icon={this.props.icon}
@@ -115,7 +128,14 @@ export class Window extends React.Component<IWindowProps, IWindowState> {
                             onDoubleClickIcon={IpcBridge.close}
                             isFocused={this.state.isFocused}
                         />
-                        {extendedChildren}
+                        <div
+                            style={{
+                                overflow: 'hidden',
+                                position: 'relative'
+                            }}
+                        >
+                            {extendedChildren}
+                        </div>
                     </Panel>
                 </div>
             </ThemeProvider>
